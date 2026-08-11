@@ -145,41 +145,74 @@ export default function SpotifyPlayer({
     }
   }, [volume, player]);
 
-  const playTrack = (spotifyTrackId) => {
-    fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${tokenRef.current}`
-      },
-      body: JSON.stringify({
-        uris: [`spotify:track:${spotifyTrackId}`]
-      })
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          let errMsg = 'Unknown error';
-          try {
-            const data = await res.json();
-            errMsg = data.error?.message || data.error?.reason || JSON.stringify(data);
-          } catch (e) {
-            errMsg = `Status ${res.status}`;
-          }
-          console.error('Play error response:', errMsg);
-          
-          if (res.status === 403) {
-             onError('playback_error', `Playback Error (403): ${errMsg}`);
-          } else if (res.status === 404) {
-             onError('playback_error', `Playback Error (404): Device or track not found on Spotify. Details: ${errMsg}`);
-          } else {
-             onError('playback_error', `Playback Error (${res.status}): ${errMsg}`);
-          }
-        }
-      })
-      .catch((err) => {
-        console.error('Play request failed:', err);
-        onError('playback_error', 'Network error during playback request.');
+  const playTrack = async (spotifyTrackId) => {
+    try {
+      // 1. Explicitly transfer playback to this device first
+      const transferRes = await fetch('https://api.spotify.com/v1/me/player', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${tokenRef.current}`
+        },
+        body: JSON.stringify({
+          device_ids: [deviceId],
+          play: false
+        })
       });
+
+      if (!transferRes.ok && transferRes.status !== 202 && transferRes.status !== 204) {
+        console.error(`[Spotify API] Transfer Playback failed with status: ${transferRes.status}`);
+        try {
+          const errBody = await transferRes.json();
+          console.error('[Spotify API] Transfer Error Body:', errBody);
+        } catch (e) {
+          console.error('[Spotify API] Could not parse transfer error body');
+        }
+      }
+
+      // Small delay to ensure Spotify registers the active device
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 2. Play the specific track
+      const trackUri = `spotify:track:${spotifyTrackId}`;
+      console.log(`[Spotify API] Requesting play for URI: ${trackUri} on device: ${deviceId}`);
+      
+      const playRes = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${tokenRef.current}`
+        },
+        body: JSON.stringify({
+          uris: [trackUri]
+        })
+      });
+
+      if (!playRes.ok) {
+        let errMsg = 'Unknown error';
+        try {
+          const data = await playRes.json();
+          errMsg = data.error?.message || data.error?.reason || JSON.stringify(data);
+          console.error(`[Spotify API] Play endpoint failed. Status: ${playRes.status}, Body:`, data);
+        } catch (e) {
+          errMsg = `Status ${playRes.status}`;
+          console.error(`[Spotify API] Play endpoint failed with status: ${playRes.status}`);
+        }
+        
+        if (playRes.status === 403) {
+           onError('playback_error', `Playback Error (403): ${errMsg}`);
+        } else if (playRes.status === 404) {
+           onError('playback_error', `Playback Error (404): Device or track not found on Spotify. Details: ${errMsg}`);
+        } else {
+           onError('playback_error', `Playback Error (${playRes.status}): ${errMsg}`);
+        }
+      } else {
+        console.log(`[Spotify API] Successfully started playback for ${trackUri}`);
+      }
+    } catch (err) {
+      console.error('[Spotify API] Network error during playback sequence:', err);
+      onError('playback_error', 'Network error during playback request.');
+    }
   };
 
   return null;
