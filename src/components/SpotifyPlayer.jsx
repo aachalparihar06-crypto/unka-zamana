@@ -56,19 +56,19 @@ export default function SpotifyPlayer({
     // Error handling
     newPlayer.addListener('initialization_error', ({ message }) => {
       console.error('Initialization Error:', message);
-      onError('initialization_error', 'Failed to initialize Spotify player. Please try refreshing.');
+      onError('initialization_error', `Initialization Error: ${message}`);
     });
     newPlayer.addListener('authentication_error', ({ message }) => {
       console.error('Authentication Error:', message);
-      onError('authentication_error', 'Spotify session expired. Please reconnect.');
+      onError('authentication_error', `Authentication Error: ${message}`);
     });
     newPlayer.addListener('account_error', ({ message }) => {
       console.error('Account Error:', message);
-      onError('account_error', 'Spotify Premium is required for Web Playback SDK streaming.');
+      onError('account_error', `Account Error: ${message}`);
     });
     newPlayer.addListener('playback_error', ({ message }) => {
       console.error('Playback Error:', message);
-      onError('playback_error', 'Failed to play Spotify track.');
+      onError('playback_error', `Playback Error: ${message}`);
     });
 
     // Playback status updates
@@ -156,16 +156,24 @@ export default function SpotifyPlayer({
         uris: [`spotify:track:${spotifyTrackId}`]
       })
     })
-      .then((res) => {
-        if (res.status === 403) {
-          onError('account_error', 'Spotify Premium is required for Web Playback SDK streaming.');
-        } else if (res.status === 404) {
-          onError('playback_error', 'Device or track not found on Spotify.');
-        } else if (!res.ok) {
-          return res.json().then((data) => {
-            console.error('Play error response:', data);
-            onError('playback_error', data.error?.message || 'Failed to play track.');
-          });
+      .then(async (res) => {
+        if (!res.ok) {
+          let errMsg = 'Unknown error';
+          try {
+            const data = await res.json();
+            errMsg = data.error?.message || data.error?.reason || JSON.stringify(data);
+          } catch (e) {
+            errMsg = `Status ${res.status}`;
+          }
+          console.error('Play error response:', errMsg);
+          
+          if (res.status === 403) {
+             onError('playback_error', `Playback Error (403): ${errMsg}`);
+          } else if (res.status === 404) {
+             onError('playback_error', `Playback Error (404): Device or track not found on Spotify. Details: ${errMsg}`);
+          } else {
+             onError('playback_error', `Playback Error (${res.status}): ${errMsg}`);
+          }
         }
       })
       .catch((err) => {
