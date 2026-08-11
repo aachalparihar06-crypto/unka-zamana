@@ -19,6 +19,7 @@ export const songs = [
     movie: "Kabhi Kabhie",
     year: "1976",
     youtubeId: "0R3V3yM99zE",
+    spotifyTrackId: "fallback00000000000001",
     embeddable: true,
     lyrics: "Kabhi kabhie mere dil mein khayal aata hai\nKi jaise tujhko banaya gaya hai mere liye...",
     backgroundGroup: 1
@@ -30,6 +31,7 @@ export const songs = [
     movie: "Chaudhvin Ka Chand",
     year: "1960",
     youtubeId: "p3b_m-Wb9yA",
+    spotifyTrackId: "fallback00000000000002",
     embeddable: true,
     lyrics: "Chaudhvin ka chand ho, ya aaftaab ho\nJo bhi ho tum khuda ki kasam, lajawab ho...",
     backgroundGroup: 1
@@ -41,6 +43,7 @@ export const songs = [
     movie: "Hum Dono",
     year: "1961",
     youtubeId: "Z42P_Xg7q-E",
+    spotifyTrackId: "fallback00000000000003",
     embeddable: true,
     lyrics: "Abhi na jao chhod kar\nKe dil abhi bhara nahi...\nAbhi abhi to aayi ho, abhi abhi to...",
     backgroundGroup: 1
@@ -52,6 +55,7 @@ export const songs = [
     movie: "Dil Apna Aur Preet Parai",
     year: "1960",
     youtubeId: "R3T5Ieb6fC0",
+    spotifyTrackId: "fallback00000000000004",
     embeddable: true,
     lyrics: "Ajeeb dastan hai yeh\nKahan shuru kahan khatam...\nYeh manzilein hai kaun si, na wo samajh sake na hum...",
     backgroundGroup: 1
@@ -65,6 +69,7 @@ export const songs = [
     movie: "Aandhi",
     year: "1975",
     youtubeId: "hXv0V9Kk80A",
+    spotifyTrackId: "fallback00000000000005",
     embeddable: true,
     lyrics: "Tere bina zindagi se koi shikwa to nahi...\nShikwa nahi, shikwa nahi, shikwa nahi...",
     backgroundGroup: 2
@@ -76,6 +81,7 @@ export const songs = [
     movie: "Masoom",
     year: "1983",
     youtubeId: "01k53_jGg3g",
+    spotifyTrackId: "fallback00000000000006",
     embeddable: true,
     lyrics: "Tujhse naraz nahin zindagi, hairan hoon main\nO hairan hoon main...\nTere masum sawalon se pareshan hoon main...",
     backgroundGroup: 2
@@ -87,6 +93,7 @@ export const songs = [
     movie: "Shree 420",
     year: "1955",
     youtubeId: "oXLzpM6B1H4",
+    spotifyTrackId: "fallback00000000000007",
     embeddable: true,
     lyrics: "Pyar hua, iqrar hua hai\nPyar se phir kyu darta hai dil...\nKehta hai dil, rasta mushkil...",
     backgroundGroup: 2
@@ -109,6 +116,8 @@ export const songs = [
     movie: "Kaagaz Ke Phool",
     year: "1959",
     youtubeId: "0v9X1T-oZ7w",
+    spotifyTrackId: "fallback00000000000009",
+    spotifyTrackId: "fallback00000000000008",
     embeddable: true,
     lyrics: "Waqt ne kiya kya haseen sitam\nTum rahe na tum, hum rahe na hum...",
     backgroundGroup: 2

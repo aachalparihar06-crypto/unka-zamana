@@ -223,17 +223,6 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* Debug display for Spotify playback status */}
-      <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 9999, background: 'rgba(0,0,0,0.8)', color: 'white', padding: '15px', borderRadius: '8px', fontSize: '12px', fontFamily: 'monospace' }}>
-        <div>CURRENT SONG</div>
-        <div style={{ color: 'var(--color-gold)' }}>Title: {currentSong?.title}</div>
-        <br />
-        <div>SPOTIFY TRACK ID:</div>
-        <div style={{ color: 'var(--color-gold)' }}>{currentSong?.spotifyTrackId || 'NONE'}</div>
-        <br />
-        <div>SOURCE:</div>
-        <div style={{ color: 'var(--color-gold)' }}>Spotify Web Playback SDK</div>
-      </div>
 
       {!hasEntered ? (
         <OpeningScreen onEnter={() => setHasEntered(true)} />
@@ -273,6 +262,8 @@ function App() {
             <SpotifyPlayer
               token={spotifyToken}
               trackId={currentSong?.spotifyTrackId}
+              trackTitle={currentSong?.title}
+              trackSinger={currentSong?.singer}
               isPlaying={isPlaying}
               volume={volume}
               onStateChange={handleSpotifyStateChange}

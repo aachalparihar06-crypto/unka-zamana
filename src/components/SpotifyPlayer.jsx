@@ -3,6 +3,8 @@ import React, { useEffect, useRef, useState } from 'react';
 export default function SpotifyPlayer({
   token,
   trackId,
+  trackTitle,
+  trackSinger,
   isPlaying,
   volume,
   onStateChange,
@@ -55,19 +57,15 @@ export default function SpotifyPlayer({
 
     // Error handling
     newPlayer.addListener('initialization_error', ({ message }) => {
-      console.error('Initialization Error:', message);
       onError('initialization_error', `Initialization Error: ${message}`);
     });
     newPlayer.addListener('authentication_error', ({ message }) => {
-      console.error('Authentication Error:', message);
       onError('authentication_error', `Authentication Error: ${message}`);
     });
     newPlayer.addListener('account_error', ({ message }) => {
-      console.error('Account Error:', message);
       onError('account_error', `Account Error: ${message}`);
     });
     newPlayer.addListener('playback_error', ({ message }) => {
-      console.error('Playback Error:', message);
       onError('playback_error', `Playback Error: ${message}`);
     });
 
@@ -80,22 +78,16 @@ export default function SpotifyPlayer({
 
     // Ready
     newPlayer.addListener('ready', ({ device_id }) => {
-      console.log('Ready with Device ID:', device_id);
       setDeviceId(device_id);
       if (onPlayerReady) onPlayerReady(device_id);
     });
 
     // Not Ready
     newPlayer.addListener('not_ready', ({ device_id }) => {
-      console.log('Device ID has gone offline:', device_id);
       setDeviceId(null);
     });
 
-    newPlayer.connect().then(success => {
-      if (success) {
-        console.log('Connected to Spotify Web Playback SDK');
-      }
-    });
+    newPlayer.connect();
 
     setPlayer(newPlayer);
     if (playerRef) playerRef.current = newPlayer;
@@ -121,9 +113,9 @@ export default function SpotifyPlayer({
       
       const spotifyPaused = state.paused;
       if (isPlaying && spotifyPaused) {
-        player.resume().catch((err) => console.error('Resume failed:', err));
+        player.resume().catch(() => {});
       } else if (!isPlaying && !spotifyPaused) {
-        player.pause().catch((err) => console.error('Pause failed:', err));
+        player.pause().catch(() => {});
       }
     });
   }, [isPlaying, player, deviceId]);
@@ -141,7 +133,7 @@ export default function SpotifyPlayer({
   // Handle Volume changes
   useEffect(() => {
     if (player) {
-      player.setVolume(volume).catch((err) => console.error('Set volume failed:', err));
+      player.setVolume(volume).catch(() => {});
     }
   }, [volume, player]);
 
@@ -181,11 +173,15 @@ export default function SpotifyPlayer({
         body: JSON.stringify({ uris: [trackUri] })
       });
 
-      // 3. Fallback: If 403 or 404, it might be a market restriction on the hardcoded ID. Search dynamically!
-      if (!playRes.ok && (playRes.status === 403 || playRes.status === 404)) {
-        console.warn(`[Spotify API] Track ${trackUri} failed with ${playRes.status}. Attempting dynamic market search...`);
+      // 3. Fallback: If 400, 403 or 404, it might be a market restriction or missing ID. Search dynamically!
+      if (!playRes.ok && (playRes.status === 400 || playRes.status === 403 || playRes.status === 404)) {
         
-        const searchRes = await fetch(`https://api.spotify.com/v1/search?q=track:Lag%20Ja%20Gale%20artist:Lata%20Mangeshkar&type=track&limit=1`, {
+        let queryStr = `track:${trackTitle || ''}`;
+        if (trackSinger) {
+          queryStr += ` artist:${trackSinger.split(',')[0]}`;
+        }
+        
+        const searchRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(queryStr)}&type=track&limit=1`, {
           headers: { Authorization: `Bearer ${tokenRef.current}` }
         });
         
@@ -193,7 +189,6 @@ export default function SpotifyPlayer({
           const searchData = await searchRes.json();
           if (searchData.tracks && searchData.tracks.items.length > 0) {
             trackUri = searchData.tracks.items[0].uri;
-            console.log(`[Spotify API] Found playable local market track: ${trackUri}`);
             
             // Retry play with the localized track URI
             playRes = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
@@ -210,7 +205,6 @@ export default function SpotifyPlayer({
         try {
           const data = await playRes.json();
           errMsg = data.error?.message || data.error?.reason || JSON.stringify(data);
-          console.error(`[Spotify API] Play endpoint failed. Body:`, data);
         } catch (e) {
           errMsg = `Status ${playRes.status}`;
         }
@@ -222,11 +216,8 @@ export default function SpotifyPlayer({
         } else {
            onError('playback_error', `Playback Error (${playRes.status}): ${errMsg}`);
         }
-      } else {
-        console.log(`[Spotify API] Successfully started playback for ${trackUri}`);
       }
     } catch (err) {
-      console.error('[Spotify API] Network error during playback sequence:', err);
       onError('playback_error', 'Network error during playback request.');
     }
   };
