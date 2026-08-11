@@ -147,23 +147,62 @@ export default function SpotifyPlayer({
 
   const playTrack = async (spotifyTrackId) => {
     try {
-      console.log(`[Spotify API] --- STARTING DIAGNOSTIC PLAYBACK SEQUENCE ---`);
-      console.log(`[Spotify API] Target Device ID: ${deviceId}`);
+      console.log(`[Spotify API] --- STARTING EXTENDED DIAGNOSTIC PLAYBACK SEQUENCE ---`);
       
-      // DIAGNOSTIC 1: Check Devices
+      // DIAGNOSTIC 0: User Profile & Product
+      try {
+        const meRes = await fetch('https://api.spotify.com/v1/me', { headers: { Authorization: `Bearer ${tokenRef.current}` } });
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          console.log('[Spotify API] User Profile:', {
+            product: meData.product,
+            country: meData.country,
+            explicit_content: meData.explicit_content,
+            display_name: meData.display_name
+          });
+        }
+      } catch (e) {
+        console.error('[Spotify API] Failed to fetch /v1/me');
+      }
+
+      // DIAGNOSTIC 1: Track Metadata
+      try {
+        const trackRes = await fetch(`https://api.spotify.com/v1/tracks/${spotifyTrackId}`, { headers: { Authorization: `Bearer ${tokenRef.current}` } });
+        if (trackRes.ok) {
+          const trackData = await trackRes.json();
+          console.log('[Spotify API] Track Info:', {
+            id: trackData.id,
+            name: trackData.name,
+            is_playable: trackData.is_playable,
+            available_markets: trackData.available_markets ? `[${trackData.available_markets.length} markets]` : 'N/A',
+            restrictions: trackData.restrictions
+          });
+        }
+      } catch (e) {
+        console.error('[Spotify API] Failed to fetch track metadata');
+      }
+
+      // DIAGNOSTIC 2: Check Devices
       let targetDevice = null;
       try {
         const devicesRes = await fetch('https://api.spotify.com/v1/me/player/devices', {
           headers: { Authorization: `Bearer ${tokenRef.current}` }
         });
-        console.log(`[Spotify API] GET /v1/me/player/devices Status: ${devicesRes.status}`);
         if (devicesRes.ok) {
           const devicesData = await devicesRes.json();
-          const mappedDevices = devicesData.devices.map(d => ({
-            device_id: d.id, device_name: d.name, device_type: d.type, is_active: d.is_active, is_restricted: d.is_restricted
-          }));
-          console.log('[Spotify API] Available Devices:', mappedDevices);
-          targetDevice = mappedDevices.find(d => d.device_id === deviceId);
+          targetDevice = devicesData.devices.find(d => d.id === deviceId);
+          if (targetDevice) {
+            console.log('[Spotify API] Web Playback SDK Device Object:', {
+              id: targetDevice.id,
+              name: targetDevice.name,
+              type: targetDevice.type,
+              is_active: targetDevice.is_active,
+              is_private_session: targetDevice.is_private_session,
+              is_restricted: targetDevice.is_restricted,
+              supports_volume: targetDevice.supports_volume,
+              volume_percent: targetDevice.volume_percent
+            });
+          }
         }
       } catch (e) {
         console.error('[Spotify API] Network error fetching devices:', e);
@@ -171,90 +210,58 @@ export default function SpotifyPlayer({
 
       if (targetDevice && targetDevice.is_restricted) {
         console.error('[Spotify API] The Web Playback SDK device is marked as restricted by Spotify.');
-        onError('account_error', 'Your Spotify account/product is restricted from using Web Playback on this device. You may need a Premium account or there is a regional restriction.');
+        onError('account_error', 'Your Spotify account/product is restricted from using Web Playback on this device.');
         return;
       }
 
-      // DIAGNOSTIC 2: Check Player State before transfer
-      try {
-        const stateRes = await fetch('https://api.spotify.com/v1/me/player', {
-          headers: { Authorization: `Bearer ${tokenRef.current}` }
-        });
-        console.log(`[Spotify API] GET /v1/me/player Status: ${stateRes.status}`);
-        if (stateRes.ok && stateRes.status !== 204) {
-          const stateData = await stateRes.json();
-          console.log('[Spotify API] Current Player State:', {
-            current_device: stateData.device?.name,
-            device_id: stateData.device?.id,
-            device_type: stateData.device?.type,
-            is_active: stateData.device?.is_active,
-            restrictions: stateData.device?.is_restricted,
-            currently_playing_track: stateData.item?.uri
-          });
-        }
-      } catch (e) {
-        console.error('[Spotify API] Network error fetching player state:', e);
-      }
-
-      // 3. Explicitly transfer playback to this device first
+      // 3. Transfer playback
       console.log(`[Spotify API] Transferring playback to device: ${deviceId}`);
       const transferRes = await fetch('https://api.spotify.com/v1/me/player', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${tokenRef.current}`
-        },
-        body: JSON.stringify({
-          device_ids: [deviceId],
-          play: false
-        })
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenRef.current}` },
+        body: JSON.stringify({ device_ids: [deviceId], play: false })
       });
       console.log(`[Spotify API] PUT /v1/me/player (Transfer) Status: ${transferRes.status}`);
 
       if (!transferRes.ok && transferRes.status !== 202 && transferRes.status !== 204) {
-        try {
-          const errBody = await transferRes.json();
-          console.error('[Spotify API] Transfer Error Body:', errBody);
-        } catch (e) {
-          console.error('[Spotify API] Could not parse transfer error body');
-        }
         onError('playback_error', `Transfer failed: ${transferRes.status}`);
         return;
       }
 
-      // Wait for device to become active (poll up to 3 times)
+      // Poll for active
       let isActive = false;
       for (let i = 0; i < 3; i++) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         const checkRes = await fetch('https://api.spotify.com/v1/me/player', { headers: { Authorization: `Bearer ${tokenRef.current}` } });
         if (checkRes.ok && checkRes.status !== 204) {
           const checkData = await checkRes.json();
+          
+          if (i === 2) {
+             console.log('[Spotify API] Player State after Transfer:', {
+                current_device: checkData.device?.name,
+                device_id: checkData.device?.id,
+                device_type: checkData.device?.type,
+                is_active: checkData.device?.is_active,
+                restrictions: checkData.device?.is_restricted,
+                currently_playing_track: checkData.item?.uri
+             });
+          }
+
           if (checkData.device?.id === deviceId && checkData.device?.is_active) {
             isActive = true;
-            console.log(`[Spotify API] Device ${deviceId} is now confirmed active.`);
             break;
           }
         }
-        console.log(`[Spotify API] Waiting for device to become active... (Attempt ${i+1})`);
-      }
-
-      if (!isActive) {
-        console.warn(`[Spotify API] Device ${deviceId} did not become active in time, attempting play anyway.`);
       }
 
       // 4. Play the specific track
       const trackUri = `spotify:track:${spotifyTrackId}`;
-      console.log(`[Spotify API] Requesting play for URI: ${trackUri} on device: ${deviceId}`);
+      console.log(`[Spotify API] Requesting play for URI: ${trackUri}`);
       
       const playRes = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${tokenRef.current}`
-        },
-        body: JSON.stringify({
-          uris: [trackUri]
-        })
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenRef.current}` },
+        body: JSON.stringify({ uris: [trackUri] })
       });
 
       console.log(`[Spotify API] PUT /v1/me/player/play Status: ${playRes.status}`);
