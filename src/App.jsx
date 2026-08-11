@@ -3,7 +3,15 @@ import OpeningScreen from './components/OpeningScreen';
 import BackgroundView from './components/BackgroundView';
 import PlayerInterface from './components/PlayerInterface';
 import PlaylistDrawer from './components/PlaylistDrawer';
+import SpotifyPlayer from './components/SpotifyPlayer';
 import { songs } from './data/songs';
+import {
+  redirectToSpotifyAuth,
+  getAccessToken,
+  clearSpotifyAuth,
+  getSpotifyUserProfile,
+  getValidAccessToken
+} from './utils/spotifyAuth';
 
 function App() {
   const [hasEntered, setHasEntered] = useState(false);
@@ -14,139 +22,217 @@ function App() {
   const [volume, setVolume] = useState(0.8);
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
   
-  const [ytPlayer, setYtPlayer] = useState(null);
-  const [ytError, setYtError] = useState(null);
-  const progressInterval = useRef(null);
+  // Spotify Integration States
+  const [spotifyToken, setSpotifyToken] = useState(null);
+  const [spotifyUser, setSpotifyUser] = useState(null);
+  const [spotifyIsConnected, setSpotifyIsConnected] = useState(false);
+  const [spotifyError, setSpotifyError] = useState(null);
+  const [isConnecting, setIsConnecting] = useState(false);
 
+  const spotifyPlayerRef = useRef(null);
   const currentSong = songs[currentSongIndex];
 
-  // Sync volume with youtube player when it changes
+  // Handle Spotify OAuth Callback & Auto Session Restoration
   useEffect(() => {
-    if (ytPlayer) {
-      ytPlayer.setVolume(volume * 100);
-    }
-  }, [volume, ytPlayer]);
-
-  // Handle Progress tracking
-  useEffect(() => {
-    if (isPlaying && ytPlayer) {
-      progressInterval.current = setInterval(async () => {
+    const handleAuth = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      
+      if (code) {
+        setIsConnecting(true);
+        // Clear params from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
         try {
-          const currentTime = await ytPlayer.getCurrentTime();
-          setProgress(currentTime);
-        } catch (e) {
-          // ignore error if player isn't fully ready
+          const token = await getAccessToken(code);
+          setSpotifyToken(token);
+          const profile = await getSpotifyUserProfile(token);
+          
+          if (profile.product !== 'premium') {
+            throw new Error('Spotify Premium is required for Web Playback SDK streaming.');
+          }
+          
+          setSpotifyUser(profile);
+          setSpotifyIsConnected(true);
+          setSpotifyError(null);
+        } catch (err) {
+          console.error('Spotify Auth Error:', err);
+          setSpotifyError(err.message || 'Authentication failed.');
+          clearSpotifyAuth();
+          setSpotifyToken(null);
+          setSpotifyIsConnected(false);
+        } finally {
+          setIsConnecting(false);
         }
+      } else {
+        // Try restoring token
+        try {
+          const token = await getValidAccessToken();
+          if (token) {
+            setSpotifyToken(token);
+            const profile = await getSpotifyUserProfile(token);
+            if (profile.product !== 'premium') {
+              throw new Error('Spotify Premium is required for Web Playback SDK streaming.');
+            }
+            setSpotifyUser(profile);
+            setSpotifyIsConnected(true);
+            setSpotifyError(null);
+          }
+        } catch (err) {
+          console.error('Restore Spotify session failed:', err);
+          setSpotifyError(err.message || 'Failed to reconnect Spotify.');
+          clearSpotifyAuth();
+          setSpotifyToken(null);
+          setSpotifyIsConnected(false);
+        }
+      }
+    };
+    
+    handleAuth();
+  }, []);
+
+  // Update position locally when track is playing
+  useEffect(() => {
+    let interval = null;
+    if (isPlaying) {
+      interval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= duration) {
+            clearInterval(interval);
+            return duration;
+          }
+          return prev + 1;
+        });
       }, 1000);
     } else {
-      clearInterval(progressInterval.current);
+      clearInterval(interval);
     }
-    return () => clearInterval(progressInterval.current);
-  }, [isPlaying, ytPlayer]);
+    return () => clearInterval(interval);
+  }, [isPlaying, duration]);
 
-  // When song changes, clear errors
+  // Check track availability whenever current song changes
   useEffect(() => {
-    setYtError(null);
+    if (spotifyIsConnected) {
+      if (!currentSong.spotifyTrackId) {
+        setSpotifyError("Unavailable Track. This song is not configured for Spotify playback.");
+        setIsPlaying(false);
+      } else {
+        setSpotifyError(null);
+      }
+    }
+  }, [currentSongIndex, spotifyIsConnected]);
+
+  const handleConnectSpotify = () => {
+    redirectToSpotifyAuth();
+  };
+
+  const handleDisconnectSpotify = () => {
+    clearSpotifyAuth();
+    setSpotifyToken(null);
+    setSpotifyUser(null);
+    setSpotifyIsConnected(false);
+    setIsPlaying(false);
     setProgress(0);
     setDuration(0);
-  }, [currentSongIndex]);
-
-  const handleYtReady = (event) => {
-    const player = event.target;
-    setYtPlayer(player);
-    player.setVolume(volume * 100);
-    
-    // Automatically get duration when ready
-    player.getDuration().then((d) => setDuration(d)).catch(() => {});
-  };
-
-  const handleYtStateChange = (event) => {
-    // 1 = PLAYING, 2 = PAUSED, 0 = ENDED, 3 = BUFFERING
-    if (event.data === 1) {
-      setIsPlaying(true);
-      event.target.getDuration().then((d) => setDuration(d)).catch(() => {});
-    } else if (event.data === 2) {
-      setIsPlaying(false);
-    } else if (event.data === 0) {
-      setIsPlaying(false);
-      handleNext();
-    }
-  };
-
-  const handleYtError = (event) => {
-    console.error("YouTube Player Error:", event.data);
-    setYtError(event.data);
-    setIsPlaying(false);
-  };
-
-  const handleYtEnd = () => {
-    handleNext();
+    setSpotifyError(null);
   };
 
   const handlePlayPause = () => {
-    if (!currentSong.youtubeId || ytError) return;
-    if (isPlaying) {
-      ytPlayer?.pauseVideo();
-    } else {
-      ytPlayer?.playVideo();
-    }
+    if (!currentSong.spotifyTrackId || spotifyError) return;
+    setIsPlaying(!isPlaying);
   };
 
   const handleNext = () => {
-    setCurrentSongIndex((prev) => (prev + 1) % songs.length);
+    const nextIndex = (currentSongIndex + 1) % songs.length;
+    setCurrentSongIndex(nextIndex);
+    const nextSong = songs[nextIndex];
+    
+    if (spotifyIsConnected) {
+      if (nextSong.spotifyTrackId) {
+        setSpotifyError(null);
+        setIsPlaying(true);
+      } else {
+        setSpotifyError("Unavailable Track. This song is not configured for Spotify playback.");
+        setIsPlaying(false);
+      }
+    }
   };
 
   const handlePrev = () => {
-    if (progress > 5 && ytPlayer) {
-      ytPlayer.seekTo(0);
+    if (progress > 5) {
+      spotifyPlayerRef.current?.seek(0).catch(() => {});
       setProgress(0);
     } else {
-      setCurrentSongIndex((prev) => (prev - 1 + songs.length) % songs.length);
+      const prevIndex = (currentSongIndex - 1 + songs.length) % songs.length;
+      setCurrentSongIndex(prevIndex);
+      const prevSong = songs[prevIndex];
+
+      if (spotifyIsConnected) {
+        if (prevSong.spotifyTrackId) {
+          setSpotifyError(null);
+          setIsPlaying(true);
+        } else {
+          setSpotifyError("Unavailable Track. This song is not configured for Spotify playback.");
+          setIsPlaying(false);
+        }
+      }
     }
   };
 
   const handleSeek = (newTime) => {
-    if (ytPlayer) {
-      ytPlayer.seekTo(newTime, true);
+    spotifyPlayerRef.current?.seek(newTime * 1000).then(() => {
       setProgress(newTime);
-    }
+    }).catch((err) => console.error('Seek failed:', err));
   };
-
-  // Explicitly load video when song changes to prevent stale playback
-  useEffect(() => {
-    if (ytPlayer) {
-      if (currentSong.youtubeId) {
-        ytPlayer.loadVideoById(currentSong.youtubeId);
-        if (isPlaying) {
-          ytPlayer.playVideo();
-        }
-      } else {
-        ytPlayer.stopVideo();
-        setIsPlaying(false);
-      }
-    }
-  }, [currentSong.youtubeId, ytPlayer]);
 
   const handleSelectSong = (index) => {
     setCurrentSongIndex(index);
-    setIsPlaying(true); // Auto play if we pick a song
+    const selectedSong = songs[index];
+
+    if (spotifyIsConnected) {
+      if (selectedSong.spotifyTrackId) {
+        setSpotifyError(null);
+        setIsPlaying(true);
+      } else {
+        setSpotifyError("Unavailable Track. This song is not configured for Spotify playback.");
+        setIsPlaying(false);
+      }
+    }
+
     if (window.innerWidth <= 768) {
       setIsPlaylistOpen(false); // Close drawer on mobile after picking
     }
   };
 
+  // Callback from Spotify Player when position/state changes
+  const handleSpotifyStateChange = (state) => {
+    if (!state) return;
+    setProgress(state.position / 1000);
+    setDuration(state.duration / 1000);
+    setIsPlaying(!state.paused);
+  };
+
+  const handleSpotifyError = (type, message) => {
+    setSpotifyError(message);
+    if (type === 'authentication_error') {
+      handleDisconnectSpotify();
+    } else {
+      setIsPlaying(false);
+    }
+  };
+
   return (
     <div className="app-container">
-      {/* Debug display as requested */}
+      {/* Debug display for Spotify playback status */}
       <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 9999, background: 'rgba(0,0,0,0.8)', color: 'white', padding: '15px', borderRadius: '8px', fontSize: '12px', fontFamily: 'monospace' }}>
         <div>CURRENT SONG</div>
         <div style={{ color: 'var(--color-gold)' }}>Title: {currentSong?.title}</div>
         <br />
-        <div>YOUTUBE ID:</div>
-        <div style={{ color: 'var(--color-gold)' }}>{currentSong?.youtubeId || 'NONE'}</div>
+        <div>SPOTIFY TRACK ID:</div>
+        <div style={{ color: 'var(--color-gold)' }}>{currentSong?.spotifyTrackId || 'NONE'}</div>
         <br />
         <div>SOURCE:</div>
-        <div style={{ color: 'var(--color-gold)' }}>YouTube IFrame Player</div>
+        <div style={{ color: 'var(--color-gold)' }}>Spotify Web Playback SDK</div>
       </div>
 
       {!hasEntered ? (
@@ -161,17 +247,18 @@ function App() {
             progress={progress}
             duration={duration}
             volume={volume}
-            ytError={ytError}
+            spotifyUser={spotifyUser}
+            spotifyIsConnected={spotifyIsConnected}
+            spotifyError={spotifyError}
+            isConnecting={isConnecting}
             onPlayPause={handlePlayPause}
             onNext={handleNext}
             onPrev={handlePrev}
             onSeek={handleSeek}
             onVolumeChange={setVolume}
             onTogglePlaylist={() => setIsPlaylistOpen(!isPlaylistOpen)}
-            onYtReady={handleYtReady}
-            onYtEnd={handleYtEnd}
-            onYtError={handleYtError}
-            onYtStateChange={handleYtStateChange}
+            onConnectSpotify={handleConnectSpotify}
+            onDisconnectSpotify={handleDisconnectSpotify}
           />
 
           <PlaylistDrawer 
@@ -181,6 +268,18 @@ function App() {
             currentIndex={currentSongIndex}
             onSelectSong={handleSelectSong}
           />
+
+          {spotifyToken && (
+            <SpotifyPlayer
+              token={spotifyToken}
+              trackId={currentSong?.spotifyTrackId}
+              isPlaying={isPlaying}
+              volume={volume}
+              onStateChange={handleSpotifyStateChange}
+              onError={handleSpotifyError}
+              playerRef={spotifyPlayerRef}
+            />
+          )}
         </>
       )}
     </div>
@@ -188,3 +287,4 @@ function App() {
 }
 
 export default App;
+
