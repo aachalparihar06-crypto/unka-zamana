@@ -147,6 +147,46 @@ export default function SpotifyPlayer({
 
   const playTrack = async (spotifyTrackId) => {
     try {
+      console.log(`[Spotify API] --- DIAGNOSTICS FOR PLAYBACK ---`);
+      
+      // DIAGNOSTIC 1: Check Devices
+      try {
+        const devicesRes = await fetch('https://api.spotify.com/v1/me/player/devices', {
+          headers: { Authorization: `Bearer ${tokenRef.current}` }
+        });
+        if (devicesRes.ok) {
+          const devicesData = await devicesRes.json();
+          console.log('[Spotify API] Available Devices:', devicesData.devices.map(d => ({
+            id: d.id, name: d.name, type: d.type, is_active: d.is_active, is_restricted: d.is_restricted
+          })));
+        } else {
+          console.error('[Spotify API] Failed to fetch devices. Status:', devicesRes.status);
+        }
+      } catch (e) {
+        console.error('[Spotify API] Network error fetching devices:', e);
+      }
+
+      // DIAGNOSTIC 2: Check Player State
+      try {
+        const stateRes = await fetch('https://api.spotify.com/v1/me/player', {
+          headers: { Authorization: `Bearer ${tokenRef.current}` }
+        });
+        if (stateRes.ok && stateRes.status !== 204) {
+          const stateData = await stateRes.json();
+          console.log('[Spotify API] Current Player State before transfer:', {
+            device: stateData.device?.name,
+            is_playing: stateData.is_playing,
+            actions: stateData.actions
+          });
+        } else {
+          console.log('[Spotify API] Current Player State before transfer: None (204 or no active device)');
+        }
+      } catch (e) {
+        console.error('[Spotify API] Network error fetching player state:', e);
+      }
+
+      console.log(`[Spotify API] --- END DIAGNOSTICS ---`);
+
       // 1. Explicitly transfer playback to this device first
       const transferRes = await fetch('https://api.spotify.com/v1/me/player', {
         method: 'PUT',
