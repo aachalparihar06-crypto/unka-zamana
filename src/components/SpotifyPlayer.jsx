@@ -147,81 +147,12 @@ export default function SpotifyPlayer({
 
   const playTrack = async (spotifyTrackId) => {
     try {
-      console.log(`[Spotify API] --- STARTING EXTENDED DIAGNOSTIC PLAYBACK SEQUENCE ---`);
-      
-      // DIAGNOSTIC 0: User Profile & Product
-      try {
-        const meRes = await fetch('https://api.spotify.com/v1/me', { headers: { Authorization: `Bearer ${tokenRef.current}` } });
-        if (meRes.ok) {
-          const meData = await meRes.json();
-          console.log('[Spotify API] User Profile:', {
-            product: meData.product,
-            country: meData.country,
-            explicit_content: meData.explicit_content,
-            display_name: meData.display_name
-          });
-        }
-      } catch (e) {
-        console.error('[Spotify API] Failed to fetch /v1/me');
-      }
-
-      // DIAGNOSTIC 1: Track Metadata
-      try {
-        const trackRes = await fetch(`https://api.spotify.com/v1/tracks/${spotifyTrackId}`, { headers: { Authorization: `Bearer ${tokenRef.current}` } });
-        if (trackRes.ok) {
-          const trackData = await trackRes.json();
-          console.log('[Spotify API] Track Info:', {
-            id: trackData.id,
-            name: trackData.name,
-            is_playable: trackData.is_playable,
-            available_markets: trackData.available_markets ? `[${trackData.available_markets.length} markets]` : 'N/A',
-            restrictions: trackData.restrictions
-          });
-        }
-      } catch (e) {
-        console.error('[Spotify API] Failed to fetch track metadata');
-      }
-
-      // DIAGNOSTIC 2: Check Devices
-      let targetDevice = null;
-      try {
-        const devicesRes = await fetch('https://api.spotify.com/v1/me/player/devices', {
-          headers: { Authorization: `Bearer ${tokenRef.current}` }
-        });
-        if (devicesRes.ok) {
-          const devicesData = await devicesRes.json();
-          targetDevice = devicesData.devices.find(d => d.id === deviceId);
-          if (targetDevice) {
-            console.log('[Spotify API] Web Playback SDK Device Object:', {
-              id: targetDevice.id,
-              name: targetDevice.name,
-              type: targetDevice.type,
-              is_active: targetDevice.is_active,
-              is_private_session: targetDevice.is_private_session,
-              is_restricted: targetDevice.is_restricted,
-              supports_volume: targetDevice.supports_volume,
-              volume_percent: targetDevice.volume_percent
-            });
-          }
-        }
-      } catch (e) {
-        console.error('[Spotify API] Network error fetching devices:', e);
-      }
-
-      if (targetDevice && targetDevice.is_restricted) {
-        console.error('[Spotify API] The Web Playback SDK device is marked as restricted by Spotify.');
-        onError('account_error', 'Your Spotify account/product is restricted from using Web Playback on this device.');
-        return;
-      }
-
-      // 3. Transfer playback
-      console.log(`[Spotify API] Transferring playback to device: ${deviceId}`);
+      // 1. Explicitly transfer playback to this device first
       const transferRes = await fetch('https://api.spotify.com/v1/me/player', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenRef.current}` },
         body: JSON.stringify({ device_ids: [deviceId], play: false })
       });
-      console.log(`[Spotify API] PUT /v1/me/player (Transfer) Status: ${transferRes.status}`);
 
       if (!transferRes.ok && transferRes.status !== 202 && transferRes.status !== 204) {
         onError('playback_error', `Transfer failed: ${transferRes.status}`);
@@ -235,18 +166,6 @@ export default function SpotifyPlayer({
         const checkRes = await fetch('https://api.spotify.com/v1/me/player', { headers: { Authorization: `Bearer ${tokenRef.current}` } });
         if (checkRes.ok && checkRes.status !== 204) {
           const checkData = await checkRes.json();
-          
-          if (i === 2) {
-             console.log('[Spotify API] Player State after Transfer:', {
-                current_device: checkData.device?.name,
-                device_id: checkData.device?.id,
-                device_type: checkData.device?.type,
-                is_active: checkData.device?.is_active,
-                restrictions: checkData.device?.is_restricted,
-                currently_playing_track: checkData.item?.uri
-             });
-          }
-
           if (checkData.device?.id === deviceId && checkData.device?.is_active) {
             isActive = true;
             break;
@@ -254,17 +173,37 @@ export default function SpotifyPlayer({
         }
       }
 
-      // 4. Play the specific track
-      const trackUri = `spotify:track:${spotifyTrackId}`;
-      console.log(`[Spotify API] Requesting play for URI: ${trackUri}`);
-      
-      const playRes = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+      // 2. Play the specific track
+      let trackUri = `spotify:track:${spotifyTrackId}`;
+      let playRes = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenRef.current}` },
         body: JSON.stringify({ uris: [trackUri] })
       });
 
-      console.log(`[Spotify API] PUT /v1/me/player/play Status: ${playRes.status}`);
+      // 3. Fallback: If 403 or 404, it might be a market restriction on the hardcoded ID. Search dynamically!
+      if (!playRes.ok && (playRes.status === 403 || playRes.status === 404)) {
+        console.warn(`[Spotify API] Track ${trackUri} failed with ${playRes.status}. Attempting dynamic market search...`);
+        
+        const searchRes = await fetch(`https://api.spotify.com/v1/search?q=track:Lag%20Ja%20Gale%20artist:Lata%20Mangeshkar&type=track&limit=1`, {
+          headers: { Authorization: `Bearer ${tokenRef.current}` }
+        });
+        
+        if (searchRes.ok) {
+          const searchData = await searchRes.json();
+          if (searchData.tracks && searchData.tracks.items.length > 0) {
+            trackUri = searchData.tracks.items[0].uri;
+            console.log(`[Spotify API] Found playable local market track: ${trackUri}`);
+            
+            // Retry play with the localized track URI
+            playRes = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenRef.current}` },
+              body: JSON.stringify({ uris: [trackUri] })
+            });
+          }
+        }
+      }
 
       if (!playRes.ok) {
         let errMsg = 'Unknown error';
