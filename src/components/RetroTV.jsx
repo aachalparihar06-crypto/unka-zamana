@@ -54,7 +54,7 @@ export default function RetroTV({
 
           {/* ── LEFT: CRT screen with live YouTube video ── */}
           <div className="crt-panel">
-            <div className="crt-screen">
+            <div className="crt-screen" onClick={onPlayPause} style={{ cursor: 'pointer' }} title={isPlaying ? "Pause" : "Play"}>
               {/* Live YouTube video */}
               <div className="crt-video-wrap">
                 {videoSlot}

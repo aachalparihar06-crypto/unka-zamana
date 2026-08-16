@@ -329,13 +329,16 @@ input[type=range] { cursor: pointer; }
     0 2px 4px rgba(0,0,0,0.8);
 }
 
-/* YouTube video container — fills the CRT screen */
+/* YouTube video container — fills CRT and clips native top overlay */
 .crt-video-wrap {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  top: -12%;
+  left: -8%;
+  width: 116%;
+  height: 124%;
   z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
 }
 
 .youtube-player-frame {
@@ -354,6 +357,7 @@ input[type=range] { cursor: pointer; }
   height: 100% !important;
   border: none;
   display: block;
+  pointer-events: none !important;
 }
 
 /* CRT overlays — on top of the video, pointer-events:none so clicks reach iframe */

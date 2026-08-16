@@ -128,6 +128,8 @@ const YouTubePlayer = forwardRef(function YouTubePlayer(
             modestbranding: 1,
             iv_load_policy: 3,
             enablejsapi: 1,
+            disablekb: 1,
+            fs: 0,
             origin: window.location.origin,
           },
           events: {
