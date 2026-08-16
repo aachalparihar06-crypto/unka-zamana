@@ -5,9 +5,11 @@ export default function PlaylistDrawer({ isOpen, onClose, songs, currentIndex, o
   return (
     <div className={`playlist-drawer glass-panel ${isOpen ? 'open' : ''}`}>
       <div className="playlist-header">
-        <h3 className="serif-text" style={{ fontSize: '1.5rem', color: 'var(--color-gold)' }}>Up Next</h3>
-        <button className="btn-icon" onClick={onClose}>
-          <X size={24} />
+        <h3 className="serif-text" style={{ fontSize: '1.4rem', color: 'var(--color-gold)' }}>
+          Playlist ({songs.length})
+        </h3>
+        <button className="btn-icon" onClick={onClose} title="Close playlist">
+          <X size={22} />
         </button>
       </div>
       
@@ -17,17 +19,26 @@ export default function PlaylistDrawer({ isOpen, onClose, songs, currentIndex, o
             key={song.id} 
             className={`playlist-item ${index === currentIndex ? 'active' : ''}`}
             onClick={() => onSelectSong(index)}
+            title={`Play #${String(index + 1).padStart(2, '0')} - ${song.title}`}
           >
-            <div style={{ opacity: 0.5, width: '20px', fontSize: '0.9rem' }}>{index + 1}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 500, color: index === currentIndex ? 'var(--color-gold)' : 'inherit' }}>
+            <div style={{ opacity: 0.65, width: '28px', fontSize: '0.85rem', fontFamily: 'monospace' }}>
+              {String(index + 1).padStart(2, '0')}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ 
+                fontWeight: 500, 
+                color: index === currentIndex ? 'var(--color-gold)' : 'inherit',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
                 {song.title}
               </div>
-              <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-                {song.singer} • {song.year}
+              <div style={{ fontSize: '0.78rem', opacity: 0.7, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {song.singer} {song.year ? `• ${song.year}` : ''}
               </div>
             </div>
-            {index === currentIndex && <PlayCircle size={20} color="var(--color-gold)" />}
+            {index === currentIndex && <PlayCircle size={18} color="var(--color-gold)" />}
           </div>
         ))}
       </div>
