@@ -154,51 +154,6 @@ export const songs = [
   },
   {
     id: 18,
-    youtubeId: "T3jvYHtGKOo",
-    title: "Panna Ki Tamanna",
-    singer: "Kishore Kumar, Lata Mangeshkar",
-    movie: "Heera Panna",
-    year: "1973",
-    backgroundGroup: 2
-  },
-  {
-    id: 19,
-    youtubeId: "EVmbe3TfyeM",
-    title: "Meri Bheegi Bheegi Si",
-    singer: "Kishore Kumar",
-    movie: "Anamika",
-    year: "1973",
-    backgroundGroup: 3
-  },
-  {
-    id: 20,
-    youtubeId: "HYFYTzGmB6E",
-    title: "Main Shayar To Nahin",
-    singer: "Shailendra Singh",
-    movie: "Bobby",
-    year: "1973",
-    backgroundGroup: 4
-  },
-  {
-    id: 21,
-    youtubeId: "MwCPjspNo2c",
-    title: "Zindagi Ke Safar Mein",
-    singer: "Kishore Kumar",
-    movie: "Aap Ki Kasam",
-    year: "1974",
-    backgroundGroup: 5
-  },
-  {
-    id: 22,
-    youtubeId: "XxrEISBLhY0",
-    title: "Ye Jo Mohabbat Hai",
-    singer: "Kishore Kumar",
-    movie: "Kati Patang",
-    year: "1970",
-    backgroundGroup: 1
-  },
-  {
-    id: 23,
     youtubeId: "LZ_YUOr-tYw",
     title: "Tujhse Naraz Nahin Zindagi",
     singer: "Anup Ghoshal, Lata Mangeshkar",
@@ -207,7 +162,7 @@ export const songs = [
     backgroundGroup: 3
   },
   {
-    id: 24,
+    id: 19,
     youtubeId: "sVwpwEwIw5w",
     title: "Dekha Ek Khwab",
     singer: "Kishore Kumar, Lata Mangeshkar",
@@ -216,16 +171,7 @@ export const songs = [
     backgroundGroup: 5
   },
   {
-    id: 25,
-    youtubeId: "FYf5HQHqBrQ",
-    title: "O Jaane Wale",
-    singer: "Mukesh",
-    movie: "Bandini",
-    year: "1963",
-    backgroundGroup: 1
-  },
-  {
-    id: 26,
+    id: 20,
     youtubeId: "zBVrnjx8Ai8",
     title: "Zindagi Pyar Ka Geet Hai",
     singer: "Kishore Kumar",
@@ -234,7 +180,7 @@ export const songs = [
     backgroundGroup: 2
   },
   {
-    id: 27,
+    id: 21,
     youtubeId: "wxknUq6PrpE",
     title: "Baahon Mein Chale Aao",
     singer: "Lata Mangeshkar",
@@ -243,7 +189,7 @@ export const songs = [
     backgroundGroup: 3
   },
   {
-    id: 28,
+    id: 22,
     youtubeId: "8_hnvv0dnCQ",
     title: "Tu Is Tarah Se Meri Zindagi Mein",
     singer: "Manhar Udhas",
@@ -252,7 +198,7 @@ export const songs = [
     backgroundGroup: 1
   },
   {
-    id: 29,
+    id: 23,
     youtubeId: "zpBYCiBYPRo",
     title: "Yeh Aankhen Dekh Kar",
     singer: "Suresh Wadkar, Lata Mangeshkar",
@@ -261,16 +207,7 @@ export const songs = [
     backgroundGroup: 3
   },
   {
-    id: 30,
-    youtubeId: "8ms_iTlEE4U",
-    title: "Sun Saiba Sun",
-    singer: "Lata Mangeshkar",
-    movie: "Ram Teri Ganga Maili",
-    year: "1985",
-    backgroundGroup: 4
-  },
-  {
-    id: 31,
+    id: 24,
     youtubeId: "rI7qm7poOT4",
     title: "Meethi Meethi Sardi",
     singer: "Lata Mangeshkar, Mohammed Aziz",
@@ -279,7 +216,7 @@ export const songs = [
     backgroundGroup: 5
   },
   {
-    id: 32,
+    id: 25,
     youtubeId: "lNW8qsoeWs4",
     title: "Humein Tumse Pyaar Kitna",
     singer: "Kishore Kumar",
@@ -288,7 +225,7 @@ export const songs = [
     backgroundGroup: 1
   },
   {
-    id: 33,
+    id: 26,
     youtubeId: "kg4lClKgN70",
     title: "Ham Bane Tum Bane",
     singer: "Lata Mangeshkar, S.P. Balasubrahmanyam",
@@ -297,7 +234,7 @@ export const songs = [
     backgroundGroup: 1
   },
   {
-    id: 34,
+    id: 27,
     youtubeId: "Fu2eb63lsg8",
     title: "Goom Hai Kisi Ke Pyaar Mein",
     singer: "Kishore Kumar, Lata Mangeshkar",
@@ -306,7 +243,7 @@ export const songs = [
     backgroundGroup: 3
   },
   {
-    id: 35,
+    id: 28,
     youtubeId: "9Y0y8jI_-8w",
     title: "Abhi Na Jao Chhod Kar",
     singer: "Mohammed Rafi, Asha Bhosle",
@@ -315,7 +252,7 @@ export const songs = [
     backgroundGroup: 4
   },
   {
-    id: 36,
+    id: 29,
     youtubeId: "HppDw90kMB8",
     title: "Kya Yahi Pyar Hai",
     singer: "Kishore Kumar, Lata Mangeshkar",
@@ -324,7 +261,7 @@ export const songs = [
     backgroundGroup: 5
   },
   {
-    id: 37,
+    id: 30,
     youtubeId: "MhdBR-sVZzU",
     title: "Main Tere Ishq Mein",
     singer: "Lata Mangeshkar",
@@ -333,7 +270,7 @@ export const songs = [
     backgroundGroup: 2
   },
   {
-    id: 38,
+    id: 31,
     youtubeId: "77OP58UDlFM",
     title: "Isaron Isharon Mein",
     singer: "Mohammed Rafi, Asha Bhosle",
@@ -342,7 +279,7 @@ export const songs = [
     backgroundGroup: 3
   },
   {
-    id: 39,
+    id: 32,
     youtubeId: "s0K8mfWFfY8",
     title: "Hum Dono Do Premi",
     singer: "Kishore Kumar, Lata Mangeshkar",
@@ -351,7 +288,7 @@ export const songs = [
     backgroundGroup: 1
   },
   {
-    id: 40,
+    id: 33,
     youtubeId: "5s68NXiaWgk",
     title: "Dil Deewana",
     singer: "Lata Mangeshkar, S.P. Balasubrahmanyam",
